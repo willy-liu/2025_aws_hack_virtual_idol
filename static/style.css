@@ -1,0 +1,64 @@
+body, html {
+    margin: 0;
+    padding: 0;
+    font-family: sans-serif;
+    height: 100%;
+  }
+  
+  .container {
+    display: flex;
+    height: 100vh;
+  }
+  
+  .video-box {
+    flex: 2;
+    background: black;
+  }
+  
+  .video-box video,
+  .video-box iframe {
+    width: 100%;
+    height: 100%;
+  }
+  
+  .chat-box {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    border-left: 2px solid #ccc;
+    background: #f9f9f9;
+  }
+  
+  .chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    max-height: 100vh;  /* 限制最大高度，讓它能滾動 */
+    padding: 10px;
+    border: 1px solid #ccc;
+  }
+  
+  .chat-message {
+    margin-bottom: 8px;
+    background: #fff;
+    padding: 6px 10px;
+    border-radius: 5px;
+    box-shadow: 0 0 2px #aaa;
+  }
+  
+  .chat-input {
+    display: flex;
+    padding: 10px;
+    border-top: 1px solid #ddd;
+  }
+  
+  .chat-input input {
+    flex: 1;
+    padding: 8px;
+    font-size: 14px;
+  }
+  
+  .chat-input button {
+    padding: 8px 16px;
+    margin-left: 10px;
+  }
+  

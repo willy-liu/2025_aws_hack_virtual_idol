@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Virtual Idol Live</title>
+
+  <link rel="stylesheet" href="/static/style.css" />
+  <link rel="icon" href="/static/favicon.ico" type="image/x-icon" />
+</head>
+<body>
+  <div class="container">
+    <div class="video-box">
+      <video id="video" muted></video>
+    </div>
+
+    <audio id="audio-player" style="display:none;"></audio>
+
+    <div class="chat-box">
+      <div id="messages" class="chat-messages"></div>
+
+      <div class="chat-input">
+        <input id="msg" placeholder="輸入訊息..." />
+        <button id="sendBtn">送出</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /* ---------- WebSocket ---------- */
+    let ws;
+    const pendingVideos = [];      // FIFO 佇列
+
+    function connectWebSocket() {
+      ws = new WebSocket(`ws://${location.host}/ws`);
+
+      ws.onopen = () => console.log("✅ WebSocket 連線成功");
+
+      ws.onmessage = ev => {
+        const data = JSON.parse(ev.data);
+
+        if (data.type === "switch") {      // {url, ts}
+          pendingVideos.push(data);
+          pendingVideos.sort((a, b) => a.ts - b.ts);
+          console.log("📩 收到影片，佇列", pendingVideos.length);
+          return;
+        }
+        if (data.type === "ack")  console.log("✔ ack", data.id);
+        if (data.type === "chat") appendChat(data.text, "server");
+      };
+
+      ws.onclose = () => {
+        console.warn("WebSocket 關閉，重連中…");
+        setTimeout(connectWebSocket, 3000);
+      };
+      ws.onerror = err => console.error("WebSocket 錯誤：", err);
+    }
+    connectWebSocket();
+
+    /* ---------- DOM ---------- */
+    const inputEl = document.getElementById("msg");
+    const sendBtn = document.getElementById("sendBtn");
+    const chatBox = document.getElementById("messages");
+
+    function sendMessage() {
+      const t = inputEl.value.trim();
+      if (!t) return;
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(t); appendChat(t, "me"); inputEl.value = "";
+      } else console.error("WS 關閉，無法發送");
+    }
+    sendBtn.onclick = sendMessage;
+    inputEl.addEventListener("keydown", e => e.key === "Enter" && sendMessage());
+
+    function appendChat(text, who) {
+      const div = document.createElement("div");
+      div.textContent = `${who}> ${text}`;
+      chatBox.appendChild(div);
+      chatBox.scrollTop = chatBox.scrollHeight;
+    }
+
+    /* ---------- 播放邏輯 ---------- */
+    const videoEl = document.getElementById("video");
+    const defaultList = [
+      "generate/default_1.mp4",
+      "generate/default_2.mp4",
+      "generate/default_3.mp4",
+      "generate/default_4.mp4",
+      "generate/default_5.mp4",
+    ];
+    let defaultIdx = 0;
+
+    videoEl.addEventListener("ended", tryPlayNext);
+
+    playVideo(defaultList[defaultIdx]);   // INIT
+
+    async function tryPlayNext() {
+      // 1) 先看佇列頂端
+      if (pendingVideos.length > 0) {
+        const next = pendingVideos[0];    // 不先 shift！
+
+        const ok = await exists(next.url);
+        if (ok) {
+          console.log("⏳ 檔案準備好了");
+          pendingVideos.shift();          // 確定存在才真正拿出
+          playVideo(next.url);
+        } else {
+          console.log("⏳ 檔案還沒好，再等等…");
+          setTimeout(tryPlayNext, 2000);  // 2 秒後重試
+        }
+        return;
+      }
+
+      // 2) 佇列空 → 播 default split
+      defaultIdx = (defaultIdx + 1) % defaultList.length;
+      playVideo(defaultList[defaultIdx]);
+    }
+
+    function playVideo(path) {
+      videoEl.src = `${path}?t=${Date.now()}`;   // 防快取
+      videoEl.load();
+      videoEl.play().catch(err => console.error("播放失敗：", err));
+    }
+
+    async function exists(url) {
+      try {
+        const r = await fetch(url, { method:"HEAD" });
+        return r.ok;
+      } catch { return false; }
+    }
+  </script>
+</body>
+</html>

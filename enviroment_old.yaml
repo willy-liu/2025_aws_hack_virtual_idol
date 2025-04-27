@@ -1,0 +1,15 @@
+name: virtual_idol
+channels:
+  - defaults
+  - conda-forge
+dependencies:
+  - python=3.10
+  - flask
+  - pip
+  - pip:
+      - flask-socketio
+      - eventlet
+      - flower
+      - redis-server
+      - ffmpeg
+      - celery
